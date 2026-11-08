@@ -1,0 +1,16 @@
+# Example of your own config: one public bucket and one risky deploy user.
+resources:
+  - id: customer-data-bucket
+    type: s3_bucket
+    config:
+      public: true
+      encrypted: false
+      versioning: true
+      logging_enabled: true
+      https_only: true
+
+  - id: ci-deploy-user
+    type: iam_user
+    config:
+      mfa_enabled: false
+      iam_admin: true

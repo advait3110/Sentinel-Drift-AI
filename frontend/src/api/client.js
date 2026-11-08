@@ -48,3 +48,11 @@ export function listScans(limit = 50) {
 export function getScan(id) {
   return request(`/api/scans/${encodeURIComponent(id)}`)
 }
+
+export function deleteScan(id) {
+  return request(`/api/scans/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export function regenerateSummary(id) {
+  return request(`/api/scans/${encodeURIComponent(id)}/summary`, { method: 'POST' })
+}

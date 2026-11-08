@@ -8,7 +8,7 @@ load_dotenv()
 url = os.getenv("SUPABASE_URL", "")
 key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
 gemini = os.getenv("GEMINI_API_KEY", "")
-model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 cors = os.getenv("CORS_ORIGINS", "")
 
 
@@ -51,8 +51,12 @@ else:
         from supabase import create_client
 
         client = create_client(url.rstrip("/"), key)
-        client.table("scans").select("id").limit(1).execute()
-        ok("Connected, and the 'scans' table exists.")
+        # Select every column the app uses, so a table with wrong columns is caught.
+        client.table("scans").select(
+            "id,created_at,filename,resources_scanned,risk_score,risk_level,"
+            "findings_count,severity_counts,risk,findings,ai_summary"
+        ).limit(1).execute()
+        ok("Connected, and the 'scans' table has all required columns.")
     except Exception as exc:
         text = str(exc)
         low = text.lower()
@@ -63,6 +67,9 @@ else:
                 "Run migrations/001_create_scans.sql in the Supabase SQL Editor.")
         elif "invalid api key" in low or "jwt" in low or "unauthorized" in low:
             bad("Supabase rejected the key. Copy the secret key again.")
+        elif "42703" in low or "pgrst204" in low or ("column" in low and "does not exist" in low):
+            bad("The 'scans' table has the wrong columns. "
+                "Run migrations/000_reset_scans.sql in the Supabase SQL Editor.")
         else:
             bad(f"Supabase error: {text[:300]}")
 
@@ -73,13 +80,27 @@ else:
     try:
         from google import genai
 
-        reply = genai.Client(api_key=gemini).models.generate_content(
+        print(f"  ...asking {model} (this can take up to a minute)")
+        # Keep a reference to the client: google-genai closes a client that is
+        # no longer referenced ("client has been closed").
+        client = genai.Client(api_key=gemini)
+        reply = client.models.generate_content(
             model=model, contents="Reply with the single word: OK"
         )
         ok(f"Gemini answered with model {model}: {(reply.text or '').strip()[:40]}")
     except ImportError:
         bad("google-genai is not installed. Run: pip install google-genai")
     except Exception as exc:
-        bad(f"Gemini error: {str(exc)[:300]}")
+        text = str(exc)
+        low = text.lower()
+        bad(f"Gemini error: {text[:300]}")
+        if "not found" in low or "no longer available" in low:
+            print("         The model name is not available. Set GEMINI_MODEL in .env to the")
+            print("         model the error message recommends, then run this again.")
+        elif "429" in low or "quota" in low or "resource_exhausted" in low:
+            print("         Free-tier limit reached. Wait a few minutes and try again.")
+        elif any(s in low for s in ("api key", "api_key", "permission", "unauthenticated", "401", "403")):
+            print("         The key was rejected. Create a new key at aistudio.google.com/apikey")
+            print("         and paste it into GEMINI_API_KEY in .env.")
 
 print("\nDone. Fix any [FAIL] lines, then restart uvicorn.\n")

@@ -10,13 +10,16 @@ Design rules:
   injection ("ignore previous instructions..."), so they are length-limited
   and the model is told to treat them as data.
 - AI failure never fails the scan. It just returns None.
+- AI is time-limited (AI_TIMEOUT_SECONDS) so a slow or stuck request can
+  never hang an upload.
 """
 
 import json
 import logging
+import threading
 from functools import lru_cache
 
-from app.core.config import AI_ENABLED, GEMINI_API_KEY, GEMINI_MODEL
+from app.core.config import AI_ENABLED, AI_TIMEOUT_SECONDS, GEMINI_API_KEY, GEMINI_MODEL
 from app.schemas import ScanResult
 
 logger = logging.getLogger("sentinel_drift")
@@ -82,33 +85,101 @@ def build_prompt(result: ScanResult) -> str:
 
 @lru_cache(maxsize=1)
 def _client():
+    # Cached, so the client stays referenced: google-genai closes clients
+    # that are no longer referenced ("client has been closed").
     from google import genai
 
-    return genai.Client(api_key=GEMINI_API_KEY)
+    try:
+        from google.genai import types
+
+        return genai.Client(
+            api_key=GEMINI_API_KEY,
+            http_options=types.HttpOptions(timeout=AI_TIMEOUT_SECONDS * 1000),  # milliseconds
+        )
+    except TypeError:  # older SDK without HttpOptions(timeout=...)
+        return genai.Client(api_key=GEMINI_API_KEY)
 
 
-def summarize_findings(result: ScanResult) -> str | None:
-    if not AI_ENABLED or not GEMINI_API_KEY or not result.findings:
-        return None
+def call_with_timeout(fn, seconds: int):
+    """Run fn() in a background thread; raise TimeoutError if it takes too long.
+
+    This is a hard limit on top of the SDK's own timeout, because SDK retries
+    can make a single call take much longer than one request timeout.
+    """
+    result: dict = {}
+
+    def run():
+        try:
+            result["value"] = fn()
+        except Exception as exc:  # re-raised in the caller's thread
+            result["error"] = exc
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(seconds)
+    if worker.is_alive():
+        raise TimeoutError(f"Gemini did not answer within {seconds} seconds")
+    if "error" in result:
+        raise result["error"]
+    return result.get("value")
+
+
+def _finish_reason(response) -> str:
+    try:
+        return str(response.candidates[0].finish_reason)
+    except Exception:
+        return "unknown"
+
+
+def generate_summary(result: ScanResult) -> tuple[str | None, str | None]:
+    """Return (summary, None) on success, or (None, reason) explaining why not.
+
+    The reason is a short, user-facing sentence shown in the UI.
+    """
+    if not result.findings:
+        return None, "No findings, so there is nothing to summarize."
+    if not AI_ENABLED:
+        return None, "AI summaries are turned off (AI_ENABLED=false in backend/.env)."
+    if not GEMINI_API_KEY:
+        return None, "GEMINI_API_KEY is not set in backend/.env."
     try:
         from google.genai import types
     except ImportError:
-        logger.warning("google-genai is not installed; skipping AI summary. "
-                       "Run: pip install google-genai")
-        return None
+        return None, "The google-genai package is not installed. Run: pip install google-genai"
 
+    prompt = build_prompt(result)
     try:
-        response = _client().models.generate_content(
-            model=GEMINI_MODEL,
-            contents=build_prompt(result),
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-                temperature=0.2,
-                max_output_tokens=1024,
+        response = call_with_timeout(
+            lambda: _client().models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                # No max_output_tokens: on "thinking" models the hidden thinking
+                # counts toward that limit and can leave no room for the answer.
+                # Length is controlled by the prompt (under 300 words).
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION,
+                    temperature=0.2,
+                ),
             ),
+            AI_TIMEOUT_SECONDS,
         )
-        text = (response.text or "").strip()
-        return text or None
-    except Exception:
-        logger.exception("AI summary failed; returning scan without it.")
-        return None
+    except TimeoutError:
+        reason = (f"Gemini did not answer within {AI_TIMEOUT_SECONDS} seconds. "
+                  "Try again, or raise AI_TIMEOUT_SECONDS in backend/.env.")
+        logger.warning("AI summary skipped: %s", reason)
+        return None, reason
+    except Exception as exc:
+        logger.exception("AI summary failed")
+        return None, f"Gemini error ({GEMINI_MODEL}): {str(exc)[:300]}"
+
+    text = (response.text or "").strip()
+    if not text:
+        reason = f"Gemini returned an empty answer (finish reason: {_finish_reason(response)})."
+        logger.warning("AI summary skipped: %s", reason)
+        return None, reason
+    return text, None
+
+
+def summarize_findings(result: ScanResult) -> str | None:
+    """Summary text, or None. Use generate_summary() to also get the reason."""
+    return generate_summary(result)[0]

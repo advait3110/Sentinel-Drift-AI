@@ -26,8 +26,10 @@ SUPABASE_SCANS_TABLE = os.getenv("SUPABASE_SCANS_TABLE", "scans")
 
 # Gemini (optional). If no key is set, scans still work without an AI summary.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 AI_ENABLED = os.getenv("AI_ENABLED", "true").lower() in ("1", "true", "yes")
+# Maximum time to wait for Gemini; after that the scan is saved without a summary.
+AI_TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "90"))
 
 # Uploads
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(1_000_000)))  # 1 MB

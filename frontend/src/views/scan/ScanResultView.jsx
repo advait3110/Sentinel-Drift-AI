@@ -4,6 +4,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { CBadge, CCard, CCardBody, CCardHeader, CCol, CRow } from '@coreui/react'
 
+import AiSummaryCard from './AiSummaryCard'
 import FindingsTable from './FindingsTable'
 import StatCard from '../../components/StatCard'
 import {
@@ -64,22 +65,7 @@ const ScanResultView = ({ scan }) => {
           </CCard>
         </CCol>
         <CCol lg={7}>
-          <CCard className="h-100">
-            <CCardHeader>AI summary</CCardHeader>
-            <CCardBody>
-              {scan.ai_summary ? (
-                <div style={{ whiteSpace: 'pre-wrap' }}>{scan.ai_summary}</div>
-              ) : (
-                <p className="text-body-secondary mb-0">
-                  No AI summary for this scan. Either there were no findings, or GEMINI_API_KEY is
-                  not set on the backend.
-                </p>
-              )}
-              <p className="small text-body-secondary mt-3 mb-0">
-                Severity and score come from the rule engine. The AI only explains them.
-              </p>
-            </CCardBody>
-          </CCard>
+          <AiSummaryCard key={scan.id} scan={scan} />
         </CCol>
       </CRow>
 

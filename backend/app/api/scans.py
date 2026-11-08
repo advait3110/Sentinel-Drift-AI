@@ -5,13 +5,19 @@ Scans API.
 POST /api/scans          upload a .json/.yaml config, run a scan, store it
 GET  /api/scans          list recent scans (summary only)
 GET  /api/scans/{id}     one scan with all findings
+DELETE /api/scans/{id}   delete one scan
+POST /api/scans/{id}/summary   (re)generate the AI summary for a saved scan
+
+Scan responses include "ai_error": why the AI summary is missing, or null.
+It is returned to the UI but not stored.
 """
 
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile
 
-from app.ai.analyzer import summarize_findings
+from app.ai.analyzer import generate_summary
+from app.schemas import ScanResult
 from app.core.config import MAX_UPLOAD_BYTES
 from app.services.scan_repository import get_repository
 from app.services.scan_service import run_scan
@@ -29,7 +35,7 @@ def create_scan(file: UploadFile = File(...)):
 
     config = parse_config(content, filename)   # ValueError -> 400
     result = run_scan(config)                  # ValueError -> 400
-    ai_summary = summarize_findings(result)    # never raises
+    ai_summary, ai_error = generate_summary(result)   # never raises
 
     data = result.model_dump(mode="json")
     row = {
@@ -43,7 +49,8 @@ def create_scan(file: UploadFile = File(...)):
         "findings": data["findings"],
         "ai_summary": ai_summary,
     }
-    return get_repository().save(row)
+    saved = get_repository().save(row)
+    return {**saved, "ai_error": ai_error}
 
 
 @router.get("")
@@ -56,4 +63,30 @@ def get_scan(scan_id: UUID):
     scan = get_repository().get(str(scan_id))
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan not found.")
-    return scan
+    return {**scan, "ai_error": None}
+
+
+@router.delete("/{scan_id}", status_code=204)
+def delete_scan(scan_id: UUID):
+    if not get_repository().delete(str(scan_id)):
+        raise HTTPException(status_code=404, detail="Scan not found.")
+    return Response(status_code=204)
+
+
+@router.post("/{scan_id}/summary")
+def regenerate_summary(scan_id: UUID):
+    """Generate the AI summary again from the stored findings."""
+    repo = get_repository()
+    scan = repo.get(str(scan_id))
+    if scan is None:
+        raise HTTPException(status_code=404, detail="Scan not found.")
+
+    result = ScanResult.model_validate({
+        "resources_scanned": scan["resources_scanned"],
+        "findings": scan.get("findings") or [],
+        "risk": scan["risk"],
+    })
+    ai_summary, ai_error = generate_summary(result)
+    if ai_summary:
+        scan = repo.update(str(scan_id), {"ai_summary": ai_summary}) or {**scan, "ai_summary": ai_summary}
+    return {**scan, "ai_error": ai_error}

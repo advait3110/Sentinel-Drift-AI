@@ -67,6 +67,14 @@ class ScanRepository:
     def get(self, scan_id: str) -> dict | None:
         raise NotImplementedError
 
+    def delete(self, scan_id: str) -> bool:
+        """Delete one scan. Returns False if it did not exist."""
+        raise NotImplementedError
+
+    def update(self, scan_id: str, fields: dict) -> dict | None:
+        """Change some columns of one scan. Returns the updated scan, or None if missing."""
+        raise NotImplementedError
+
     def check(self) -> None:
         """Raise StorageError if the store is not usable."""
 
@@ -94,6 +102,18 @@ class InMemoryScanRepository(ScanRepository):
     def get(self, scan_id: str) -> dict | None:
         with self._lock:
             return self._rows.get(scan_id)
+
+    def delete(self, scan_id: str) -> bool:
+        with self._lock:
+            return self._rows.pop(scan_id, None) is not None
+
+    def update(self, scan_id: str, fields: dict) -> dict | None:
+        with self._lock:
+            row = self._rows.get(scan_id)
+            if row is None:
+                return None
+            row.update(fields)
+            return row
 
 
 class SupabaseScanRepository(ScanRepository):
@@ -129,6 +149,18 @@ class SupabaseScanRepository(ScanRepository):
     def get(self, scan_id: str) -> dict | None:
         resp = self._run("get", lambda: (
             self._client.table(self._table).select("*").eq("id", scan_id).limit(1).execute()
+        ))
+        return resp.data[0] if resp.data else None
+
+    def delete(self, scan_id: str) -> bool:
+        resp = self._run("delete", lambda: (
+            self._client.table(self._table).delete().eq("id", scan_id).execute()
+        ))
+        return bool(resp.data)
+
+    def update(self, scan_id: str, fields: dict) -> dict | None:
+        resp = self._run("update", lambda: (
+            self._client.table(self._table).update(fields).eq("id", scan_id).execute()
         ))
         return resp.data[0] if resp.data else None
 
