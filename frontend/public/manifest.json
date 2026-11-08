@@ -1,0 +1,16 @@
+{
+  "short_name": "Sentinel Drift",
+  "name": "Sentinel Drift AI",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#212631",
+  "background_color": "#ffffff"
+}

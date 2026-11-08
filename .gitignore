@@ -1,24 +1,30 @@
-# Python
-backend/venv/
-__pycache__/
-*.pyc
-
-# Environment variables
-backend/.env
+# ---- Secrets: never commit ----
 .env
+.env.*
+!.env.example
 
-# Node
-frontend/node_modules/
+# ---- Python ----
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
 
-# VS Code
+# ---- Node ----
+node_modules/
+frontend/build/
+frontend/dist/
+
+# ---- Archives (share code through Git, not zips) ----
+*.zip
+
+# ---- Editors / OS ----
 .vscode/
-
-# OS
+.idea/
 .DS_Store
 Thumbs.db
 
-# Uploads
-backend/uploads/
-
-# Logs
+# ---- Logs ----
 *.log

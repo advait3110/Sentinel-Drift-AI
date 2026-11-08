@@ -1,16 +1,78 @@
-# React + Vite
+# Sentinel Drift AI — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite + CoreUI dashboard for Sentinel Drift AI. It talks to the
+FastAPI backend in `../backend`.
 
-Currently, two official plugins are available:
+## Pages
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Route | Page |
+|---|---|
+| `#/dashboard` | Current risk score, risk trend, recent scans |
+| `#/scan` | Upload a JSON/YAML config and run a scan |
+| `#/scans` | Scan history |
+| `#/scans/:id` | One scan: score, AI summary, filterable findings |
 
-## React Compiler
+The app uses `HashRouter`, so URLs contain `#/`. That works on any static host
+without rewrite rules.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Setup (Windows, Command Prompt)
 
-## Expanding the ESLint configuration
+```cmd
+cd frontend
+npm install
+copy .env.example .env
+npm start
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+`npm start` runs `vite --open` on http://localhost:3000 and opens the browser.
+The backend must be running on http://localhost:8000 (see `../backend/README.md`)
+with `CORS_ORIGINS=http://localhost:3000` in its `.env`.
+
+The header badge shows the backend state:
+- **API online**: connected, scans saved to Supabase.
+- **API online · temporary storage**: connected, but Supabase isn't configured on
+  the backend, so scans are lost when it restarts.
+- **API offline**: the backend isn't reachable at `VITE_API_URL`.
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm start` / `npm run dev` | Dev server on port 3000, opens the browser |
+| `npm run build` | Production build into `build/` |
+| `npm run serve` | Preview the production build |
+| `npm run lint` | ESLint + Prettier checks |
+
+## Structure
+
+```
+src/
+├── api/client.js          All backend calls
+├── config.js              App constants (upload limits, theme key)
+├── components/            Layout: header, sidebar, footer, breadcrumb,
+│                          API status badge, error boundary, StatCard
+├── layout/DefaultLayout.jsx
+├── views/
+│   ├── dashboard/         Overview
+│   ├── scan/              Upload page, result view, findings table
+│   ├── history/           Scan list and scan detail
+│   ├── error-pages/       Full-page 404 / 500
+│   └── NotFound.jsx       In-app 404
+├── utils/severity.js      Severity colors, labels, formatting
+├── routes.js              Page routes
+├── _nav.jsx               Sidebar menu
+└── scss/style.scss        Theme + app styles
+```
+
+## Configuration
+
+`.env`:
+```
+VITE_API_URL=http://localhost:8000
+```
+
+Upload limits in `src/config.js` match the backend (`MAX_UPLOAD_BYTES`, 1 MB).
+
+## License
+
+The UI is based on the CoreUI Free React Admin Template, MIT licensed (see `LICENSE`).

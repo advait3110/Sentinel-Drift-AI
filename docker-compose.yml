@@ -1,0 +1,25 @@
+# Run the whole app: docker compose up --build
+# Frontend: http://localhost:3000   Backend: http://localhost:8000
+
+services:
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      # The browser loads the frontend from localhost:3000
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the build; this is the URL the *browser* uses to reach the API.
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

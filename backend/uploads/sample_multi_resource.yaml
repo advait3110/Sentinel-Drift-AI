@@ -1,0 +1,25 @@
+# Several resources in one upload.
+resources:
+  - id: prod-logs-bucket
+    type: s3_bucket
+    config:
+      public: false
+      encrypted: true
+      versioning: true
+      logging_enabled: true
+      https_only: true
+
+  - id: marketing-assets-bucket
+    type: s3_bucket
+    config:
+      public: true
+      encrypted: false
+      versioning: false
+      logging_enabled: false
+      https_only: true
+
+  - id: deploy-bot
+    type: iam_user
+    config:
+      mfa_enabled: false
+      iam_admin: true

@@ -1,0 +1,130 @@
+# app/rules/security_rules.yaml
+#
+# Security rules as data. Add new rules here, or add more *.yaml files in this
+# folder. The rule engine loads every .yaml / .yml file in this directory.
+#
+# Fields:
+#   id              unique rule ID
+#   title           short description of the problem when the rule FAILS
+#   resource_types  which resource types the rule applies to; "*" = all.
+#                   "generic" = flat single-resource uploads (no type given).
+#   path            dotted path into the resource config, e.g. "encryption.enabled"
+#   operator        equals | not_equals | in | not_in | gte | lte | exists
+#   value           value used by the operator (not needed for "exists")
+#   severity        critical | high | medium | low | info
+#   on_missing      fail | skip | info
+#                     fail -> missing control is reported at the rule's severity
+#                     info -> missing control is reported as info only
+#                     skip -> missing control is ignored (use sparingly)
+#   remediation     how to fix it
+#   frameworks      control IDs this maps to (CIS, ISO 27001, PCI DSS, ...)
+
+- id: SD-001
+  title: Resource is publicly accessible
+  resource_types: [generic, s3_bucket, storage_account, database]
+  path: public
+  operator: equals
+  value: false
+  severity: critical
+  on_missing: fail
+  remediation: Block all public access and remove public ACLs or policies.
+  frameworks: []
+
+- id: SD-002
+  title: Encryption is disabled
+  resource_types: [generic, s3_bucket, storage_account, database, disk]
+  path: encrypted
+  operator: equals
+  value: true
+  severity: high
+  on_missing: fail
+  remediation: Enable encryption at rest using a managed key (KMS / Key Vault / Cloud KMS).
+  frameworks: []
+
+- id: SD-003
+  title: Root access is enabled
+  resource_types: [generic, server, database]
+  path: root_access
+  operator: equals
+  value: false
+  severity: critical
+  on_missing: fail
+  remediation: Disable root login and use named accounts with least privilege.
+  frameworks: []
+
+- id: SD-004
+  title: Multi-Factor Authentication (MFA) is disabled
+  resource_types: [generic, iam_user]
+  path: mfa_enabled
+  operator: equals
+  value: true
+  severity: high
+  on_missing: fail
+  remediation: Enforce MFA for all interactive users, starting with privileged accounts.
+  frameworks: []
+
+- id: SD-005
+  title: Audit logging is disabled
+  resource_types: [generic, s3_bucket, storage_account, database, server]
+  path: logging_enabled
+  operator: equals
+  value: true
+  severity: medium
+  on_missing: fail
+  remediation: Enable audit logging and ship logs to a central, write-protected store.
+  frameworks: []
+
+- id: SD-006
+  title: Automatic backups are disabled
+  resource_types: [generic, database, server, disk]
+  path: backup_enabled
+  operator: equals
+  value: true
+  severity: medium
+  on_missing: fail
+  remediation: Enable automated backups with a defined retention period and test restores.
+  frameworks: []
+
+- id: SD-007
+  title: Object versioning is disabled
+  resource_types: [generic, s3_bucket, storage_account]
+  path: versioning
+  operator: equals
+  value: true
+  severity: medium
+  on_missing: info
+  remediation: Enable versioning so deleted or overwritten objects can be recovered.
+  frameworks: []
+
+- id: SD-008
+  title: HTTPS-only access is not enforced
+  resource_types: [generic, s3_bucket, storage_account, web_app, load_balancer]
+  path: https_only
+  operator: equals
+  value: true
+  severity: high
+  on_missing: fail
+  remediation: Reject plain HTTP and enforce TLS 1.2 or higher.
+  frameworks: []
+
+- id: SD-009
+  title: Security group is open to the Internet
+  resource_types: [generic, security_group, server]
+  path: security_group_open
+  operator: equals
+  value: false
+  severity: critical
+  on_missing: info
+  remediation: Restrict inbound rules to known CIDR ranges; never allow 0.0.0.0/0 on admin ports.
+  frameworks: []
+
+- id: SD-010
+  title: IAM user has administrator privileges
+  resource_types: [generic, iam_user, iam_role]
+  path: iam_admin
+  operator: equals
+  value: false
+  severity: high
+  on_missing: info
+  remediation: Remove administrator policies and grant only the permissions the user needs.
+  frameworks: []

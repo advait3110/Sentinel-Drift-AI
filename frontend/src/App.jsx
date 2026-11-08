@@ -1,121 +1,56 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+/**
+ * Root component: theme setup and top-level routing.
+ *
+ * Uses HashRouter, so URLs look like http://localhost:3000/#/scans.
+ * That works on any static host without server-side rewrite rules.
+ */
+import React, { Suspense, useEffect } from 'react'
+import { HashRouter, Route, Routes } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import { CSpinner, useColorModes } from '@coreui/react'
 
-function App() {
-  const [count, setCount] = useState(0)
+import './scss/style.scss'
+import { THEME_STORAGE_KEY } from './config'
+
+const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'))
+const Page404 = React.lazy(() => import('./views/error-pages/page404/Page404'))
+const Page500 = React.lazy(() => import('./views/error-pages/page500/Page500'))
+
+const App = () => {
+  const { isColorModeSet, setColorMode } = useColorModes(THEME_STORAGE_KEY)
+  const storedTheme = useSelector((state) => state.theme)
+
+  useEffect(() => {
+    // Allow ?theme=dark in the URL, otherwise use the saved or default theme.
+    // Works for both /?theme=dark#/dashboard and /#/dashboard?theme=dark
+    const fromSearch = new URLSearchParams(window.location.search).get('theme')
+    const fromHash = new URLSearchParams(window.location.hash.split('?')[1] || '').get('theme')
+    const theme = (fromSearch || fromHash)?.match(/^(light|dark|auto)$/)?.[0]
+    if (theme) {
+      setColorMode(theme)
+      return
+    }
+    if (!isColorModeSet()) {
+      setColorMode(storedTheme)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <HashRouter>
+      <Suspense
+        fallback={
+          <div className="pt-3 text-center">
+            <CSpinner color="primary" variant="grow" />
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/404" element={<Page404 />} />
+          <Route path="/500" element={<Page500 />} />
+          <Route path="*" element={<DefaultLayout />} />
+        </Routes>
+      </Suspense>
+    </HashRouter>
   )
 }
 

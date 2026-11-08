@@ -1,0 +1,107 @@
+@use "@coreui/coreui/scss/coreui" as * with ( 
+  $enable-deprecation-messages: false,
+);
+@use "@coreui/chartjs/scss/coreui-chartjs";
+@use "vendors/simplebar";
+
+body {
+  background-color: var(--cui-tertiary-bg);
+}
+
+.wrapper {
+  width: 100%;
+  padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
+  will-change: auto;
+  @include transition(padding .15s);
+}
+
+.header > .container-fluid,
+.sidebar-header {
+  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+.sidebar-brand-full {
+  margin-left: 3px;
+}
+
+.sidebar-header {
+  .nav-underline-border {
+    --cui-nav-underline-border-link-padding-x: 1rem;
+    --cui-nav-underline-border-gap: 0;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+  }
+}
+
+.sidebar-toggler {
+  margin-inline-start: auto;
+}
+
+.sidebar-narrow,
+.sidebar-narrow-unfoldable:not(:hover) {
+  .sidebar-toggler {
+    margin-inline-end: auto;
+  }
+}
+
+.header > .container-fluid + .container-fluid {
+  min-height: 3rem;
+}
+
+.footer {
+  min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+@include color-mode(dark) {
+  body {
+    background-color: var(--cui-dark-bg-subtle);
+  }
+
+  .footer {
+    --cui-footer-bg: var(--cui-body-bg);
+  }
+}
+
+// ---- Sentinel Drift ----
+
+.upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 11rem;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed var(--cui-border-color);
+  border-radius: var(--cui-border-radius-lg);
+  background-color: var(--cui-body-bg);
+  @include transition(border-color .15s, background-color .15s);
+
+  &:hover,
+  &:focus-visible,
+  &.is-dragging {
+    border-color: var(--cui-primary);
+    background-color: rgba(var(--cui-primary-rgb), .05);
+    outline: none;
+  }
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: .6;
+  }
+}
+
+// Findings table: keep long values readable without breaking the layout.
+.table code {
+  word-break: break-word;
+}
+
+// Clickable table rows (scan history).
+tr[role="button"] {
+  cursor: pointer;
+}

@@ -1,0 +1,12 @@
+{
+  "public": false,
+  "encrypted": true,
+  "root_access": false,
+  "mfa_enabled": true,
+  "logging_enabled": true,
+  "backup_enabled": true,
+  "versioning": true,
+  "https_only": true,
+  "security_group_open": false,
+  "iam_admin": false
+}
